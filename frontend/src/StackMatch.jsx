@@ -1,5 +1,8 @@
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 import { useState, useEffect, useRef } from "react";
+
+// --- CONSTANTS ---
+const API_URL = process.env.REACT_APP_API_URL || "https://skill-gap-backend-s5w9.onrender.com";
+const MAKE_WEBHOOK = "https://hook.eu1.make.com/uysjlyrudayb5wmhqsby5x596ly06a28";
 
 const COLORS = {
   bg: "#0a0a0f",
@@ -25,6 +28,8 @@ const ROLES = [
 
 const LEVELS = ["Junior", "Mid-level", "Senior", "Staff / Principal", "Director / VP"];
 
+// --- SUB-COMPONENTS ---
+
 function RadarChart({ skills }) {
   if (!skills || skills.length === 0) return null;
   const cx = 150, cy = 150, r = 110;
@@ -46,7 +51,6 @@ function RadarChart({ skills }) {
   });
   const currentPts = pts(skills.map(s => s.current));
   const targetPts = pts(skills.map(s => s.target));
-  const toPath = (p) => p.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt[0]},${pt[1]}`).join(' ') + ' Z';
 
   return (
     <svg viewBox="0 0 300 300" style={{ width: "100%", maxWidth: 320 }}>
@@ -74,7 +78,7 @@ function RadarChart({ skills }) {
 function SkillBar({ skill, delay = 0 }) {
   const [width, setWidth] = useState(0);
   useEffect(() => { const t = setTimeout(() => setWidth(1), delay + 100); return () => clearTimeout(t); }, [delay]);
-  const gap = skill.target - skill.current;
+  const gap = Math.max(0, skill.target - skill.current);
   const gapColor = gap > 4 ? COLORS.danger : gap > 2 ? COLORS.warn : COLORS.success;
 
   return (
@@ -111,7 +115,7 @@ function GlowBtn({ children, onClick, disabled, secondary }) {
     <button onClick={onClick} disabled={disabled}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       style={{
-        padding: "12px 28px", borderRadius: 8, border: "none", cursor: disabled ? "not-allowed" : "pointer",
+        padding: "12px 28px", borderRadius: 8, cursor: disabled ? "not-allowed" : "pointer",
         fontFamily: "'Space Mono', monospace", fontSize: 13, fontWeight: 700, letterSpacing: 1,
         background: disabled ? COLORS.border : secondary
           ? hover ? `${COLORS.accent2}30` : "transparent"
@@ -151,19 +155,19 @@ function Tag({ children, color }) {
   );
 }
 
+// --- MAIN COMPONENT ---
+
 export default function StackMatch() {
-  const [step, setStep] = useState("form"); // form | loading | results
+  const [step, setStep] = useState("form");
   const [role, setRole] = useState("");
   const [level, setLevel] = useState("");
   const [skills, setSkills] = useState("");
-  const [experience, setExperience] = useState("");
-  const [goals, setGoals] = useState("");
+  const [email, setEmail] = useState("");
   const [results, setResults] = useState(null);
   const [error, setError] = useState("");
   const [resumeText, setResumeText] = useState("");
   const [resumeName, setResumeName] = useState("");
   const [resumeLoading, setResumeLoading] = useState(false);
-  const [email, setEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   const resultsRef = useRef(null);
 
@@ -173,7 +177,6 @@ export default function StackMatch() {
     }
   }, [step]);
 
-  // ---------------- RESUME HANDLER ----------------
   async function handleResume(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -188,23 +191,23 @@ export default function StackMatch() {
 
       const res = await fetch(`${API_URL}/parse-resume`, {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      if (!res.ok) {
+          const errorInfo = await res.json().catch(() => ({}));
+          throw new Error(errorInfo.error || `Server returned ${res.status}`);
+      }
 
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      setResumeText(data.text || "");
 
-      setResumeText(data.text);
-
-      // Auto-fill skills field if currently empty
-      if (!skills) {
+      if (!skills && data.text) {
         setSkills(data.text.slice(0, 800));
       }
     } catch (err) {
       console.error("Resume parse error:", err);
-      setError("Failed to parse resume. Make sure the server is running and try again.");
+      setError(`Upload failed: ${err.message}`);
       setResumeText("");
       setResumeName("");
     } finally {
@@ -212,10 +215,8 @@ export default function StackMatch() {
     }
   }
 
-  // ---------------- SEND TO MAKE (WEBHOOK) ----------------
   async function sendToMake(data) {
-    const MAKE_WEBHOOK = "YOUR_MAKE_WEBHOOK_URL";
-    if (!email || MAKE_WEBHOOK === "YOUR_MAKE_WEBHOOK_URL") return;
+    if (!email || !MAKE_WEBHOOK) return;
     try {
       await fetch(MAKE_WEBHOOK, {
         method: "POST",
@@ -224,17 +225,7 @@ export default function StackMatch() {
           email,
           role,
           level,
-          readinessScore: data.readinessScore,
-          readinessLabel: data.readinessLabel,
-          atsScore: data.atsScore,
-          atsLabel: data.atsLabel,
-          summary: data.summary,
-          topStrengths: data.topStrengths,
-          criticalGaps: data.criticalGaps,
-          timeToReady: data.timeToReady,
-          salaryImpact: data.salaryImpact,
-          skills: data.skills,
-          learningPath: data.learningPath,
+          ...data,
           timestamp: new Date().toISOString()
         })
       });
@@ -244,7 +235,6 @@ export default function StackMatch() {
     }
   }
 
-  // ---------------- ANALYZE FUNCTION ----------------
   async function analyze() {
     if (!role || !level || !skills) {
       setError("Please fill in role, level, and your current skills.");
@@ -258,40 +248,32 @@ export default function StackMatch() {
       const res = await fetch(`${API_URL}/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, level, skills, experience, goals, resumeText })
+        body: JSON.stringify({ role, level, skills, resumeText })
       });
 
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      if (!res.ok) throw new Error(`Analysis failed: ${res.status}`);
 
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
       setResults(data);
       setStep("results");
 
-      // Send to Make webhook if email is provided
-      await sendToMake(data);
+      if (email) {
+        await sendToMake(data);
+      }
 
     } catch (err) {
       console.error("Analyze error:", err);
-      setError("Analysis failed. Make sure the server is running and try again.");
+      setError("Analysis failed. Please check your backend connection.");
       setStep("form");
     }
   }
 
-  // ---------------- RENDER ----------------
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, padding: "32px 16px" }}>
-
-      {/* FORM STEP */}
       {step === "form" && (
         <div style={{ maxWidth: 600, margin: "0 auto" }}>
-          <h1 style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, marginBottom: 8, color: COLORS.accent }}>
-            StackMatch
-          </h1>
-          <p style={{ color: COLORS.muted, marginBottom: 32, fontSize: 14 }}>
-            Get a personalized readiness report for your target role.
-          </p>
+          <h1 style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, marginBottom: 8, color: COLORS.accent }}>StackMatch</h1>
+          <p style={{ color: COLORS.muted, marginBottom: 32, fontSize: 14 }}>Get a personalized readiness report for your target role.</p>
 
           {error && (
             <div style={{ background: `${COLORS.danger}15`, border: `1px solid ${COLORS.danger}40`, borderRadius: 8, padding: "12px 16px", marginBottom: 20, color: COLORS.danger, fontSize: 13 }}>
@@ -299,81 +281,46 @@ export default function StackMatch() {
             </div>
           )}
 
-          {/* Role */}
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: "block", fontSize: 12, color: COLORS.muted, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>TARGET ROLE</label>
-            <select value={role} onChange={e => setRole(e.target.value)}
-              style={{ width: "100%", padding: "10px 12px", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.text, fontSize: 14 }}>
+            <select value={role} onChange={e => setRole(e.target.value)} style={{ width: "100%", padding: "10px 12px", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.text, fontSize: 14 }}>
               <option value="">Select a role…</option>
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
 
-          {/* Level */}
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: "block", fontSize: 12, color: COLORS.muted, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>TARGET LEVEL</label>
-            <select value={level} onChange={e => setLevel(e.target.value)}
-              style={{ width: "100%", padding: "10px 12px", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.text, fontSize: 14 }}>
+            <select value={level} onChange={e => setLevel(e.target.value)} style={{ width: "100%", padding: "10px 12px", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.text, fontSize: 14 }}>
               <option value="">Select a level…</option>
               {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
 
-          {/* Current Skills */}
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: "block", fontSize: 12, color: COLORS.muted, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>YOUR CURRENT SKILLS</label>
-            <textarea value={skills} onChange={e => setSkills(e.target.value)} rows={4}
-              placeholder="e.g. React, TypeScript, Node.js, 3 years experience…"
-              style={{ width: "100%", padding: "10px 12px", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.text, fontSize: 14, resize: "vertical", boxSizing: "border-box" }} />
+            <textarea value={skills} onChange={e => setSkills(e.target.value)} rows={4} placeholder="e.g. React, TypeScript, Node.js..." style={{ width: "100%", padding: "10px 12px", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.text, fontSize: 14, resize: "vertical", boxSizing: "border-box" }} />
           </div>
 
-          {/* Experience */}
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", fontSize: 12, color: COLORS.muted, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>YEARS OF EXPERIENCE (optional)</label>
-            <input value={experience} onChange={e => setExperience(e.target.value)} type="number" min="0" max="40"
-              placeholder="e.g. 3"
-              style={{ width: "100%", padding: "10px 12px", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.text, fontSize: 14, boxSizing: "border-box" }} />
-          </div>
-
-          {/* Goals */}
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", fontSize: 12, color: COLORS.muted, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>CAREER GOALS (optional)</label>
-            <textarea value={goals} onChange={e => setGoals(e.target.value)} rows={2}
-              placeholder="e.g. I want to move into a tech lead role within 12 months…"
-              style={{ width: "100%", padding: "10px 12px", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.text, fontSize: 14, resize: "vertical", boxSizing: "border-box" }} />
-          </div>
-
-          {/* Resume Upload */}
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: "block", fontSize: 12, color: COLORS.muted, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>UPLOAD RESUME (optional)</label>
-            <label style={{
-              display: "inline-flex", alignItems: "center", gap: 8, cursor: resumeLoading ? "wait" : "pointer",
-              padding: "9px 16px", borderRadius: 8, border: `1px dashed ${COLORS.border}`,
-              background: COLORS.card, color: resumeLoading ? COLORS.muted : COLORS.text, fontSize: 13
-            }}>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: resumeLoading ? "wait" : "pointer", padding: "9px 16px", borderRadius: 8, border: `1px dashed ${COLORS.border}`, background: COLORS.card, color: resumeLoading ? COLORS.muted : COLORS.text, fontSize: 13 }}>
               <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleResume} style={{ display: "none" }} disabled={resumeLoading} />
               {resumeLoading ? "Parsing…" : resumeName ? `✓ ${resumeName}` : "Choose file"}
             </label>
           </div>
 
-          {/* Email */}
           <div style={{ marginBottom: 28 }}>
             <label style={{ display: "block", fontSize: 12, color: COLORS.muted, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>EMAIL RESULTS (optional)</label>
-            <input value={email} onChange={e => setEmail(e.target.value)} type="email"
-              placeholder="you@example.com"
-              style={{ width: "100%", padding: "10px 12px", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.text, fontSize: 14, boxSizing: "border-box" }} />
+            <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="you@example.com" style={{ width: "100%", padding: "10px 12px", background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.text, fontSize: 14, boxSizing: "border-box" }} />
           </div>
 
-          <GlowBtn onClick={analyze} disabled={!role || !level || !skills}>
-            ANALYZE MY GAPS →
-          </GlowBtn>
+          <GlowBtn onClick={analyze} disabled={!role || !level || !skills}>ANALYZE MY GAPS →</GlowBtn>
         </div>
       )}
 
-      {/* LOADING STEP */}
       {step === "loading" && <Spinner />}
 
-      {/* RESULTS STEP */}
       {step === "results" && results && (
         <div ref={resultsRef} style={{ maxWidth: 700, margin: "0 auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
@@ -387,7 +334,6 @@ export default function StackMatch() {
             </div>
           )}
 
-          {/* Score cards */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
             <div style={{ background: COLORS.card, borderRadius: 12, padding: 20, border: `1px solid ${COLORS.border}` }}>
               <div style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Space Mono', monospace", marginBottom: 8 }}>READINESS</div>
@@ -401,53 +347,16 @@ export default function StackMatch() {
             </div>
           </div>
 
-          {/* Summary */}
           <div style={{ background: COLORS.card, borderRadius: 12, padding: 20, border: `1px solid ${COLORS.border}`, marginBottom: 24 }}>
             <p style={{ color: COLORS.text, fontSize: 14, lineHeight: 1.7, margin: 0 }}>{results.summary}</p>
           </div>
 
-          {/* Skills + Radar */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
-            <div>
-              {results.skills?.map((s, i) => <SkillBar key={s.name} skill={s} delay={i * 80} />)}
-            </div>
+            <div>{results.skills?.map((s, i) => <SkillBar key={s.name} skill={s} delay={i * 80} />)}</div>
             <RadarChart skills={results.skills} />
-          </div>
-
-          {/* Learning path */}
-          {results.learningPath?.length > 0 && (
-            <div style={{ background: COLORS.card, borderRadius: 12, padding: 20, border: `1px solid ${COLORS.border}`, marginBottom: 24 }}>
-              <h3 style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: COLORS.muted, marginBottom: 16 }}>LEARNING PATH</h3>
-              {results.learningPath.map((item, i) => (
-                <div key={i} style={{ display: "flex", gap: 12, marginBottom: 14, alignItems: "flex-start" }}>
-                  <span style={{ width: 24, height: 24, borderRadius: "50%", background: `${COLORS.accent2}30`, color: COLORS.accent2, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{i + 1}</span>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{item.title}</div>
-                    <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 2 }}>{item.description}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Time to ready + salary */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            {results.timeToReady && (
-              <div style={{ background: COLORS.card, borderRadius: 12, padding: 20, border: `1px solid ${COLORS.border}` }}>
-                <div style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>TIME TO READY</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.accent3 }}>{results.timeToReady}</div>
-              </div>
-            )}
-            {results.salaryImpact && (
-              <div style={{ background: COLORS.card, borderRadius: 12, padding: 20, border: `1px solid ${COLORS.border}` }}>
-                <div style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>SALARY IMPACT</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.success }}>{results.salaryImpact}</div>
-              </div>
-            )}
           </div>
         </div>
       )}
     </div>
   );
 }
-
