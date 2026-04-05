@@ -1,3 +1,4 @@
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 import { useState, useEffect, useRef } from "react";
 
 const COLORS = {
@@ -185,7 +186,7 @@ export default function StackMatch() {
       const formData = new FormData();
       formData.append("resume", file);
 
-      const res = await fetch("http://localhost:3001/parse-resume", {
+      const res = await fetch(`${API_URL}/parse-resume`, {
         method: "POST",
         body: formData
       });
@@ -254,7 +255,7 @@ export default function StackMatch() {
     setStep("loading");
 
     try {
-      const res = await fetch("http://localhost:3001/analyze", {
+      const res = await fetch(`${API_URL}/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role, level, skills, experience, goals, resumeText })
