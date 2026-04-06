@@ -1,5 +1,6 @@
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 import { useState, useEffect, useRef } from "react";
+
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 const COLORS = {
   bg: "#0a0a0f",
