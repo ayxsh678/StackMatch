@@ -47,6 +47,7 @@ export default function StackMatch() {
         body: JSON.stringify({ role, level, skills, resumeText, email })
       });
       if (!res.ok) throw new Error("Server Error");
+      const data = await res.json();
       setResult(data);
     } catch (err) { setError("Analysis failed. Try again."); }
     finally { setLoading(false); }
