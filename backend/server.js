@@ -42,28 +42,58 @@ app.post("/parse-resume", upload.single("resume"), async (req, res) => {
 });
 app.post("/analyze", async (req, res) => {
   try {
-    const { role, level, skills, resumeText, yearsExp, careerGoals, email } = req.body;
-    const prompt = "You are a senior tech career coach. Analyze skill gaps for someone targeting a " + level + " " + role + " position.\n\nCandidate Info:\n- Current Skills: " + (skills || "Not provided") + "\n- Years of Experience: " + (yearsExp || "Not specified") + "\n- Career Goals: " + (careerGoals || "Not specified") + "\n- Resume Summary: " + (resumeText ? resumeText.slice(0, 1500) : "Not provided") + "\n\nReturn JSON ONLY with this exact structure:\n{\n  \"readinessScore\": 0,\n  \"atsScore\": 0,\n  \"summary\": \"\",\n  \"skills\": [{\"name\": \"\", \"current\": 0, \"target\": 0, \"priority\": \"\"}],\n  \"topGaps\": [],\n  \"recommendations\": [],\n  \"timelineMonths\": 0\n}\nInclude 6-8 relevant skills for the " + role + " role.";
+    const { role, level, skills, resumeText, email } = req.body;
+
+    // 1. Better Prompting - Force JSON structure
     const completion = await groq.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
-      model: "llama-3.3-70b-versatile",
+      messages: [
+        { 
+          role: "system", 
+          content: "You are a career coach. You must output ONLY valid JSON. Do not include any explanations outside the JSON object." 
+        },
+        { 
+          role: "user", 
+          content: `Analyze readiness for Role: ${role}, Level: ${level}. 
+          Current Skills: ${skills}. 
+          Resume: ${resumeText || "None"}.
+          
+          Return this exact JSON structure:
+          {
+            "readinessScore": number,
+            "atsScore": number,
+            "summary": "string",
+            "skills": [{"name": "string", "current": number, "target": number, "insight": "string"}]
+          }` 
+        }
+      ],
+      model: "llama3-8b-8192",
       response_format: { type: "json_object" }
     });
-    const result = JSON.parse(completion.choices[0].message.content);
-    if (email && email.includes("@") && email !== "you@example.com") {
-      try {
-        await fetch("https://hook.eu1.make.com/sdq0buf8ev2bewe697gd5m5c0n8rj7pm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, ...result, role, level })
-        });
-      } catch (e) { console.log("Webhook error:", e.message); }
+
+    const aiContent = completion.choices[0].message.content;
+    
+    // 2. Safe Parsing
+    let result;
+    try {
+      result = JSON.parse(aiContent);
+    } catch (e) {
+      console.error("AI returned invalid JSON:", aiContent);
+      return res.status(500).json({ error: "AI response was not in the correct format." });
     }
+
+    // 3. Webhook (Only if email is valid and NOT the placeholder)
+    if (email && email.includes("@") && !email.includes("example.com")) {
+      fetch("https://hook.eu1.make.com/sdq0buf8ev2bewe697gd5m5c0n8rj7pm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, ...result, role, level })
+      }).catch(err => console.log("Webhook failed but ignoring"));
+    }
+
     res.json(result);
+
   } catch (err) {
-    console.error("Analysis error:", err);
-    res.status(500).json({ error: "Analysis failed" });
+    console.error("Detailed Server Error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Server running on port " + PORT));

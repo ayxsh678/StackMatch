@@ -1,138 +1,164 @@
-# 🧠 Stack Match
+# StackMatch — AI Career Intelligence
 
-An AI-powered career intelligence tool that analyzes your current skills and maps the exact gaps standing between you and your dream role.
+> Get a personalized readiness report for your target role. Upload your resume, describe your skills, and let AI map your path to mastery.
 
-![AI Skill Gap Analyzer](https://img.shields.io/badge/Powered%20by-Groq%20LLaMA%203.3-00e5ff?style=for-the-badge)
-![React](https://img.shields.io/badge/React-18-61dafb?style=for-the-badge&logo=react)
-![License](https://img.shields.io/badge/License-MIT-7c3aed?style=for-the-badge)
-
----
-
-## ✨ Features
-
-- **Readiness Score** — Get a 0–100 score showing how ready you are for your target role
-- **Skill Breakdown** — Animated bars comparing your current vs target skill levels
-- **Radar Chart** — Visual overview of your entire skill profile at a glance
-- **Top Strengths & Critical Gaps** — Know exactly what to highlight and what to fix
-- **3-Phase Learning Roadmap** — Actionable steps for 0–3, 3–6, and 6–12 months
-- **Salary Impact Estimate** — Understand the financial value of closing your skill gaps
-- **12 Role Options** — Frontend, Backend, ML Engineer, DevOps, Product Manager, and more
+![StackMatch](https://img.shields.io/badge/StackMatch-AI%20Career%20Intelligence-00e5ff?style=for-the-badge)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)
+![Node.js](https://img.shields.io/badge/Node.js-Express-339933?style=flat-square&logo=node.js)
+![Groq](https://img.shields.io/badge/Groq-LLaMA%203.3%2070B-FF6B35?style=flat-square)
+![Vercel](https://img.shields.io/badge/Deployed-Vercel-black?style=flat-square&logo=vercel)
+![Render](https://img.shields.io/badge/Backend-Render-46E3B7?style=flat-square&logo=render)
 
 ---
 
-## 🚀 Live Demo
-
-👉 [View Live App](https://skill-gap-analyzer-delta.vercel.app)
-
----
-
-## 🛠 Tech Stack
-
-| Technology | Purpose |
-|---|---|
-| React 18 | Frontend UI |
-| Groq API | AI inference engine |
-| LLaMA 3.3 70B | Language model for analysis |
-| CSS-in-JS | Styling |
-| GitHub Pages | Deployment |
-
----
-
-## 📦 Getting Started
-
-### Prerequisites
-- Node.js v16+
-- A free [Groq API key](https://console.groq.com)
-
-### Installation
-
-```bash
-# Clone the repo
-git clone https://github.com/yourusername/skill-gap-analyzer.git
-cd skill-gap-analyzer
-
-# Install dependencies
-npm install
-
-# Start the development server
-npm start
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-### Adding your API Key
-
-Open `src/SkillGapAnalyzer.jsx` and find line 226. Replace the API key with your own Groq key:
-
-```js
-"Authorization": "Bearer YOUR_GROQ_API_KEY_HERE"
-```
-
-Get your free key at [console.groq.com](https://console.groq.com).
-
----
-
-## 🚢 Deployment
-
-Deploy to GitHub Pages with one command:
-
-```bash
-npm run deploy
-```
-
-Make sure your `package.json` has:
-
-```json
-"homepage": "https://yourusername.github.io/skill-gap-analyzer",
-"scripts": {
-  "predeploy": "npm run build",
-  "deploy": "gh-pages -d build"
-}
-```
-
----
-
-## 🎯 How to Use
-
-1. Select your **Target Role** (e.g. ML Engineer, Frontend Engineer)
-2. Choose your **Target Level** (Junior → Director)
-3. Describe your **Current Skills & Experience**
-4. Optionally add years of experience and career goals
-5. Click **Analyze My Skill Gaps**
-6. Get your full AI-powered career report in seconds!
-
----
-
-## 📁 Project Structure
+## 📁 Monorepo Structure
 
 ```
-my-skill-app/
-├── public/
-│   └── index.html
-├── src/
-│   ├── App.js               # Root component
-│   ├── SkillGapAnalyzer.jsx # Main app component
-│   └── index.js             # Entry point
-├── package.json
+StackMatch/
+├── frontend/          # React app (CRA) — deployed on Vercel
+│   ├── src/
+│   │   └── StackMatch.jsx
+│   ├── public/
+│   └── package.json
+├── backend/           # Node.js + Express API — deployed on Render
+│   ├── server.js
+│   └── package.json
+├── package.json       # Root workspace config (Yarn workspaces)
 └── README.md
 ```
 
 ---
 
-## 🤝 Contributing
+## ✨ Features
 
-Pull requests are welcome! For major changes, please open an issue first.
-
----
-
-## 📄 License
-
-MIT © [Ayush Verma](https://github.com/ayxsh678)
+- 🎯 **Role-based gap analysis** — select your target role and level
+- 📄 **Resume parsing** — upload PDF, DOCX, or TXT resumes
+- 🤖 **AI-powered analysis** — powered by Groq's LLaMA 3.3 70B
+- 📧 **Email report delivery** — get your analysis in your inbox
+- 📊 **Radar chart visualization** — visual skill gap breakdown
 
 ---
 
-## 🙏 Acknowledgements
+## 🚀 Getting Started
 
-- [Groq](https://groq.com) for the blazing fast free API
-- [Meta LLaMA](https://llama.meta.com) for the language model
-- Built with ❤️ using React
+### Prerequisites
+
+- Node.js v18+
+- Yarn v1.22+
+- A [Groq API key](https://console.groq.com)
+
+### Installation
+
+```bash
+# Clone the repo
+git clone https://github.com/ayxsh678/StackMatch.git
+cd StackMatch
+
+# Install all dependencies (frontend + backend)
+yarn install
+```
+
+### Environment Setup
+
+**Frontend** — create `frontend/.env.local`:
+```env
+REACT_APP_API_URL=http://localhost:3001
+```
+
+**Backend** — create `backend/.env`:
+```env
+GROQ_API_KEY=your_groq_api_key_here
+PORT=3001
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_email_app_password
+```
+
+### Run Locally
+
+```bash
+# Run both frontend and backend simultaneously
+yarn dev
+```
+
+- Frontend: [http://localhost:3000](http://localhost:3000)
+- Backend: [http://localhost:3001](http://localhost:3001)
+
+### Run Individually
+
+```bash
+# Frontend only
+yarn start:frontend
+
+# Backend only
+yarn start:backend
+```
+
+---
+
+## 🌐 Deployment
+
+| Service | Platform | URL |
+|---------|----------|-----|
+| Frontend | Vercel | `stackmatch-*.vercel.app` |
+| Backend | Render | `skill-gap-backend-s5w9.onrender.com` |
+
+### Deploy Frontend (Vercel)
+
+1. Connect `ayxsh678/StackMatch` repo to Vercel
+2. Set **Root Directory** → `frontend`
+3. Add env var: `REACT_APP_API_URL` = your Render backend URL
+4. Deploy
+
+### Deploy Backend (Render)
+
+1. Connect `ayxsh678/StackMatch` repo to Render
+2. Set **Root Directory** → `backend`
+3. **Build Command** → `npm install`
+4. **Start Command** → `node server.js`
+5. Add env vars: `GROQ_API_KEY`, `EMAIL_USER`, `EMAIL_PASS`
+
+---
+
+## 🛠 Tech Stack
+
+### Frontend
+- **React 18** (Create React App)
+- **Recharts** — radar chart visualization
+- Custom CSS-in-JS styling
+
+### Backend
+- **Node.js + Express**
+- **Groq SDK** — LLaMA 3.3 70B inference
+- **Multer** — file upload handling
+- **Mammoth** — DOCX parsing
+- **pdf-parse** — PDF text extraction
+- **Nodemailer** — email delivery
+
+---
+
+## 📜 Scripts
+
+| Command | Description |
+|---------|-------------|
+| `yarn dev` | Run frontend + backend concurrently |
+| `yarn build` | Build frontend for production |
+| `yarn start:frontend` | Start frontend only |
+| `yarn start:backend` | Start backend only |
+
+---
+
+## 🗂 Related
+
+- **skill-gap-backend** (archived) — original standalone backend, now merged into this monorepo
+
+---
+
+## 👤 Author
+
+**Ayush Verma**
+- GitHub: [@ayxsh678](https://github.com/ayxsh678)
+- LinkedIn: [ayushverma567](https://linkedin.com/in/ayushverma567)
+
+---
+
+<p align="center">Built with ❤️ using Groq + React + Node.js</p>
